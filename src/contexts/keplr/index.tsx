@@ -132,6 +132,7 @@ export const GetKeplrProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const disconnectKeplr = () => {
+    cosmwasmClientRef.current?.disconnect();
     lastUsedKeplrRef.current = undefined;
     cosmwasmClientRef.current = undefined;
     setAccount(null);

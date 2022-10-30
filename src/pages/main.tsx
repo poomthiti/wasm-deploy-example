@@ -3,21 +3,23 @@ import { useKeplrContext } from '../contexts/keplr';
 import { useCallback, useState } from 'react';
 import { DropZone } from '../components/dropzone';
 import {
+  MsgExecuteContractComposer,
   MsgInstantiateComposer,
   MsgStoreCodeComposer,
 } from '../tx/msgComposer';
-import { cosmwasm, estimateOsmoFee } from 'osmojs';
-import { toUtf8 } from '@cosmjs/encoding';
-import { StdFee } from '@cosmjs/stargate';
+import { cosmwasm } from 'osmojs';
 import Long from 'long';
-import { FEE, INIT_MSG } from '../config/constants';
+import { getFee, INIT_MSG, mintMsg } from '../config/constants';
 import { useTxContext } from '../contexts/tx';
 
 function MainPage() {
   const { account, connectKeplr, disconnectKeplr } = useKeplrContext();
-  const { uploadContract, instantiateContract, simulateFee } = useTxContext();
+  const { uploadContract, instantiateContract, simulateFee, executeContract } =
+    useTxContext();
   const [wasmFile, setWasmFile] = useState<Uint8Array | undefined>();
-  const [codeId, setCodeId] = useState<string>('');
+  const [inputMsg, setInputMsg] = useState(
+    JSON.stringify(mintMsg, undefined, 2)
+  );
   const sendStoreCodeTx = useCallback(async () => {
     if (!account || !wasmFile) {
       return alert('Keplr not connected or file not uploaded');
@@ -33,23 +35,61 @@ function MainPage() {
 
     const estimatedFee = await simulateFee(account.address, [msg]);
     if (!estimatedFee) return alert('Cannot estimate fee');
-    // const res = (await sendTxKeplr(msg, FEE)) as Object;
-    const res = await uploadContract(account.address, wasmFile, FEE);
-    console.log(res);
-    // setCodeId(
-    //   res.events.find((el) => el.type === 'store_code').attributes[0].value
-    // );
-    // console.log('TX Store Code Response', res);
+    const res = await uploadContract(
+      account.address,
+      wasmFile,
+      getFee(estimatedFee)
+    );
+    console.log('TX Store Code Response', res);
   }, [account, wasmFile]);
 
   const instantiateContractTx = useCallback(async () => {
-    // "3349"
+    // "3380"
     if (!account) {
       return alert('Keplr not connected');
     }
-    const res = await instantiateContract(3349, INIT_MSG, 'beeb', FEE);
+    const msg = MsgInstantiateComposer({
+      sender: account.address,
+      admin: account.address,
+      codeId: Long.fromNumber(3349),
+      label: 'beeb',
+      msg: Buffer.from(JSON.stringify(INIT_MSG)),
+      funds: [],
+    });
+    const estimatedFee = await simulateFee(account.address, [msg]);
+    if (!estimatedFee) return alert('Cannot estimate fee');
+    const res = await instantiateContract(
+      account.address,
+      3380,
+      INIT_MSG,
+      'beeb',
+      getFee(estimatedFee)
+    );
     console.log('TX Instantiate Response', res);
-  }, [account, codeId]);
+  }, [account]);
+
+  const executeContractTx = useCallback(async () => {
+    // contract: osmo1agptdpegjlq2fgkufaclpjw9p7u50smakwn8e3h54u4ugjml4tyq25q8k7
+    if (!account) {
+      return alert('Keplr not connected');
+    }
+    const msg = MsgExecuteContractComposer({
+      sender: account.address,
+      contract:
+        'osmo1agptdpegjlq2fgkufaclpjw9p7u50smakwn8e3h54u4ugjml4tyq25q8k7',
+      msg: Buffer.from(inputMsg, 'utf-8'),
+      funds: [],
+    });
+    const estimatedFee = await simulateFee(account.address, [msg]);
+    if (!estimatedFee) return alert('Cannot estimate fee');
+    const res = await executeContract(
+      account.address,
+      'osmo1agptdpegjlq2fgkufaclpjw9p7u50smakwn8e3h54u4ugjml4tyq25q8k7',
+      JSON.parse(inputMsg),
+      getFee(estimatedFee)
+    );
+    console.log('EXECUTE CONTRACT RESPONSE', res);
+  }, [account]);
 
   return (
     <div className="App">
@@ -80,17 +120,29 @@ function MainPage() {
               Send Store Code Transaction
             </button>
           )}
-          <h6>{codeId}</h6>
           {/* Instantiate Contract Section */}
           <div
             style={{ borderBottom: '1px solid #E5E5E5', margin: '32px 0 8px' }}
           />
           <h6>Instantiate Contract</h6>
-          {
-            <button style={{ marginTop: 16 }} onClick={instantiateContractTx}>
-              Send Instantiate Code Transaction
-            </button>
-          }
+          <button onClick={instantiateContractTx}>
+            Send Instantiate Code Transaction
+          </button>
+          {/* Execute Contract Section */}
+          <div
+            style={{ borderBottom: '1px solid #E5E5E5', margin: '32px 0 8px' }}
+          />
+          <h6>Execute Contract</h6>
+          <textarea
+            rows={8}
+            name="text"
+            placeholder="Enter JSON message here..."
+            value={inputMsg}
+            onChange={(e) => setInputMsg(e.target.value)}
+          />
+          <button style={{ marginTop: 16 }} onClick={executeContractTx}>
+            Execute Contract
+          </button>
         </div>
       </header>
     </div>

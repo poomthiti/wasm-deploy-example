@@ -55,16 +55,9 @@ export interface MsgSend {
   amount: Coin[];
 }
 
-interface GeneratedTxMsg<Msg> {
-  typeUrl: string;
-  value: Msg;
-}
-
-export type GenericTxMsg = GeneratedTxMsg<
-  MsgStoreCode | MsgInstantiateContract | MsgSend
->;
-
-export declare enum TxType {
-  UPLOAD = 'UPLOAD',
-  INSTANTIATE = 'INSTANTIATE',
+export interface MsgExecuteContract {
+  sender: string;
+  contract: string;
+  msg: Uint8Array;
+  funds: Coin[];
 }

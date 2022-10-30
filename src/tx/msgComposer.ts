@@ -1,10 +1,12 @@
-import { cosmwasm, cosmos } from 'osmojs';
-import { MsgSend } from 'osmojs/types/codegen/cosmos/bank/v1beta1/tx';
-import { MsgInstantiateContract, MsgStoreCode } from '../types';
+import { cosmwasm } from 'osmojs';
+import {
+  MsgInstantiateContract,
+  MsgStoreCode,
+  MsgExecuteContract,
+} from '../types';
 
-const { storeCode, instantiateContract } =
+const { storeCode, instantiateContract, executeContract } =
   cosmwasm.wasm.v1.MessageComposer.withTypeUrl;
-const { send } = cosmos.bank.v1beta1.MessageComposer.withTypeUrl;
 
 export const MsgStoreCodeComposer = (msg: MsgStoreCode) => {
   return storeCode(msg);
@@ -14,6 +16,6 @@ export const MsgInstantiateComposer = (msg: MsgInstantiateContract) => {
   return instantiateContract(msg);
 };
 
-export const MsgSendComposer = (msg: MsgSend) => {
-  return send(msg);
+export const MsgExecuteContractComposer = (msg: MsgExecuteContract) => {
+  return executeContract(msg);
 };

@@ -1,10 +1,15 @@
-import { InstantiateResult, UploadResult } from '@cosmjs/cosmwasm-stargate';
-import { StdFee } from '@cosmjs/stargate';
+import {
+  ExecuteResult,
+  InstantiateResult,
+  UploadResult,
+} from '@cosmjs/cosmwasm-stargate';
+import { StdFee, Coin } from '@cosmjs/stargate';
 import { createContext, ReactNode, useContext } from 'react';
 import { useKeplrContext } from '../keplr';
 
 export const TxContext = createContext<{
   instantiateContract(
+    senderAddress: string,
     codeId: number,
     msg: object,
     label: string,
@@ -21,14 +26,23 @@ export const TxContext = createContext<{
     messages: { typeUrl: string; value: any }[],
     memo?: string | undefined
   ): Promise<number | undefined>;
+  executeContract(
+    senderAddress: string,
+    contractAddress: string,
+    msg: object,
+    fee: number | 'auto' | StdFee,
+    memo?: string | undefined,
+    funds?: Coin[] | undefined
+  ): Promise<ExecuteResult | undefined>;
 }>({
   instantiateContract: () => Promise.resolve(undefined),
   uploadContract: () => Promise.resolve(undefined),
   simulateFee: () => Promise.resolve(undefined),
+  executeContract: () => Promise.resolve(undefined),
 });
 
 export const TxProvider = ({ children }: { children: ReactNode }) => {
-  const { getKeplr, account, getCosmWasmClient } = useKeplrContext();
+  const { getCosmWasmClient } = useKeplrContext();
   const cosmwasmClient = getCosmWasmClient();
   const uploadContract = async (
     senderAddress: string,
@@ -36,24 +50,20 @@ export const TxProvider = ({ children }: { children: ReactNode }) => {
     fee: number | StdFee | 'auto',
     memo: string | undefined = undefined
   ) => {
-    const keplr = await getKeplr();
-    if (keplr === undefined || !account || !cosmwasmClient)
-      return Promise.resolve(undefined);
-    console.log('fee', fee);
+    if (!cosmwasmClient) return Promise.resolve(undefined);
     return await cosmwasmClient.upload(senderAddress, wasmCode, fee, memo);
   };
 
   const instantiateContract = async (
+    senderAddress: string,
     codeId: number,
     msg: object,
     label: string,
     fee: StdFee
   ) => {
-    const keplr = await getKeplr();
-    if (keplr === undefined || !account || !cosmwasmClient)
-      return Promise.resolve(undefined);
+    if (!cosmwasmClient) return Promise.resolve(undefined);
     return await cosmwasmClient.instantiate(
-      account.address,
+      senderAddress,
       codeId,
       msg,
       label,
@@ -66,15 +76,37 @@ export const TxProvider = ({ children }: { children: ReactNode }) => {
     messages: { typeUrl: string; value: any }[],
     memo: string | undefined = undefined
   ) => {
-    const keplr = await getKeplr();
-    if (keplr === undefined || !account || !cosmwasmClient)
-      return Promise.resolve(undefined);
+    if (!cosmwasmClient) return Promise.resolve(undefined);
     return await cosmwasmClient.simulate(signerAddress, messages, memo);
+  };
+
+  const executeContract = async (
+    senderAddress: string,
+    contractAddress: string,
+    msg: object,
+    fee: number | 'auto' | StdFee,
+    memo: string | undefined = undefined,
+    funds: Coin[] | undefined = undefined
+  ) => {
+    if (!cosmwasmClient) return Promise.resolve(undefined);
+    return await cosmwasmClient.execute(
+      senderAddress,
+      contractAddress,
+      msg,
+      fee,
+      memo,
+      funds
+    );
   };
 
   return (
     <TxContext.Provider
-      value={{ uploadContract, instantiateContract, simulateFee }}
+      value={{
+        uploadContract,
+        instantiateContract,
+        simulateFee,
+        executeContract,
+      }}
     >
       {children}
     </TxContext.Provider>
